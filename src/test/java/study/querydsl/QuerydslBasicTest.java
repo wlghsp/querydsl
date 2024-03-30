@@ -4,7 +4,6 @@ import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ExpressionUtils;
-import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
@@ -14,11 +13,11 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.PersistenceUnit;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.dto.MemberDto;
 import study.querydsl.dto.QMemberDto;
@@ -30,7 +29,6 @@ import study.querydsl.entity.Team;
 import java.util.List;
 
 import static com.querydsl.jpa.JPAExpressions.select;
-import static org.assertj.core.api.Assertions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static study.querydsl.entity.QMember.member;
 import static study.querydsl.entity.QTeam.team;
@@ -666,6 +664,48 @@ public class QuerydslBasicTest {
         return usernameEq(usernameCond).and(ageEq(ageCond));
     }
 
+    @Test
+//    @Commit
+    void bulkUpdate() {
+        // member1 = 10 -> 비회원
+        // member2 = 20 -> 비회원
+        // member3 = 30 -> 유지
+        // member4 = 40 -> 유지
 
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+        /**
+         * 영속성컨텍스트에 남아 있으면 update가 되지 않음
+         * 영속성컨텍스트가 우선권을 가짐
+         * 벌크연산 이후에는 아래와 같이 flush, clear를 해서 영속성 컨텍스트를 초기화함
+         */
+        em.flush();
+        em.clear();
 
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .fetch();
+        for (Member member1 : result) {
+            System.out.println("member1 = " + member1);
+        }
+    }
+
+    @Test
+    void bulkAdd() {
+        long count = queryFactory
+                .update(member)
+                .set(member.age, member.age.multiply(2))
+                .execute();
+    }
+
+    @Test
+    void bulkDelete() {
+        long count = queryFactory
+                .delete(member)
+                .where(member.age.gt(18))
+                .execute();
+    }
 }
